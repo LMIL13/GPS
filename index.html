@@ -85,6 +85,17 @@
   .empty-state h2{font-size:17px;color:var(--ink);}
   .empty-state p{font-size:14px;margin:0;max-width:280px;}
 
+  .home-choices{display:flex;flex-direction:column;gap:14px;padding:12px 0 8px;}
+  .home-choice{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 16px;
+    box-shadow:var(--shadow);display:flex;gap:16px;align-items:center;cursor:pointer;}
+  .home-choice:active{transform:scale(0.99);}
+  .home-choice .glyph{font-size:26px;width:54px;height:54px;border-radius:14px;background:var(--surface-2);
+    display:flex;align-items:center;justify-content:center;color:var(--accent);flex:none;}
+  .home-choice-body{flex:1;min-width:0;}
+  .home-choice-title{font-weight:700;font-size:16.5px;}
+  .home-choice-desc{font-size:13px;color:var(--ink-dim);margin-top:4px;}
+  .home-choice-count{font-family:var(--font-mono);font-size:12px;color:var(--teal);margin-top:8px;}
+
   .list{display:flex;flex-direction:column;gap:10px;}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:var(--shadow);
     display:flex;gap:12px;align-items:center;cursor:pointer;}
@@ -1160,7 +1171,11 @@
   /* ---------- app state ---------- */
   var state = {
     entries: [],           // every fiche on this device — the only copy
-    view: 'list',
+    // L'app demarre depuis v27 sur un ecran d'accueil qui laisse choisir
+    // entre la partie "Fiches" et la partie "Carnets" ; chacune a ensuite
+    // sa propre navigation interne (list/form/detail pour les fiches,
+    // carnet-list/carnet-form pour les carnets).
+    view: 'home',
     editingId: null,
     annotators: {},
     photoMeta: {close:null, env1:null, env2:null},
@@ -1181,7 +1196,13 @@
     // distincts des fiches signaletiques de point. editingCarnetId suit le
     // meme principe que editingId pour les fiches.
     carnets: [],
-    editingCarnetId: null
+    editingCarnetId: null,
+    // Selection multiple de carnets dans la liste des carnets (v27), meme
+    // principe que selectMode/selectedIds ci-dessus pour les fiches, mais
+    // gardee distincte pour que selectionner des fiches et des carnets ne
+    // se melangent jamais.
+    carnetSelectMode: false,
+    selectedCarnetIds: {}
   };
 
   function sortEntries(){
@@ -1264,13 +1285,16 @@
   function render(){
     var actions = qs('#topbar-actions');
     var root = qs('#view-root');
-    if(state.view === 'list'){
+    if(state.view === 'home'){
+      actions.innerHTML = '';
+      root.innerHTML = storageBannerHtml() + renderHome();
+    } else if(state.view === 'list'){
       if(state.selectMode){
         actions.innerHTML = '<button class="btn btn-ghost btn-sm" data-action="toggle-select-mode">Annuler la selection</button>';
       } else {
         actions.innerHTML =
+          '<button class="btn btn-ghost btn-sm" data-action="back-to-home" title="Retour a l\'accueil">&larr; Accueil</button>' +
           '<button class="btn btn-secondary btn-sm" data-action="toggle-select-mode" title="Selectionner plusieurs fiches">&#9745; Selectionner</button>' +
-          '<button class="btn btn-secondary btn-sm" data-action="open-carnets" title="Carnets de terrain (sessions GPS statiques)">&#128221; Carnets</button>' +
           '<button class="btn btn-secondary btn-sm" data-action="export-csv" title="Exporter en CSV">&#8615; CSV</button>' +
           '<button class="btn btn-secondary btn-sm" data-action="pick-import-fiche" title="Importer une fiche ou un carnet envoye depuis un autre telephone">&#8613; Importer</button>' +
           '<input type="file" accept="application/json,.json" style="display:none" data-role="import-fiche-input">' +
@@ -1286,10 +1310,17 @@
       actions.innerHTML = '<button class="btn btn-ghost btn-sm" data-action="back-to-list">&larr; Fiches</button>';
       root.innerHTML = storageBannerHtml() + renderDetail(state.entries.find(function(e){ return e.id === state.editingId; }));
     } else if(state.view === 'carnet-list'){
-      actions.innerHTML =
-        '<button class="btn btn-ghost btn-sm" data-action="back-to-list">&larr; Fiches</button>' +
-        '<button class="btn btn-primary btn-sm" data-action="new-carnet">+ Nouveau carnet</button>';
-      root.innerHTML = storageBannerHtml() + renderCarnetList();
+      if(state.carnetSelectMode){
+        actions.innerHTML = '<button class="btn btn-ghost btn-sm" data-action="toggle-select-mode-carnet">Annuler la selection</button>';
+      } else {
+        actions.innerHTML =
+          '<button class="btn btn-ghost btn-sm" data-action="back-to-home" title="Retour a l\'accueil">&larr; Accueil</button>' +
+          '<button class="btn btn-secondary btn-sm" data-action="toggle-select-mode-carnet" title="Selectionner plusieurs carnets">&#9745; Selectionner</button>' +
+          '<button class="btn btn-secondary btn-sm" data-action="pick-import-fiche" title="Importer une fiche ou un carnet envoye depuis un autre telephone">&#8613; Importer</button>' +
+          '<input type="file" accept="application/json,.json" style="display:none" data-role="import-fiche-input">' +
+          '<button class="btn btn-primary btn-sm" data-action="new-carnet">+ Nouveau carnet</button>';
+      }
+      root.innerHTML = storageBannerHtml() + renderCarnetList() + (state.carnetSelectMode ? selectCarnetBarHtml() : '');
     } else if(state.view === 'carnet-form'){
       if(qs('#carnet-form')) collectCarnetFormFields();
       actions.innerHTML = '<button class="btn btn-ghost btn-sm" data-action="cancel-carnet-form">Annuler</button>';
@@ -1306,6 +1337,30 @@
     }
   }
 
+  function renderHome(){
+    var n = state.entries.length;
+    var nc = state.carnets.length;
+    return '<div class="home-choices">' +
+      '<div class="home-choice" data-action="go-fiches">' +
+        '<div class="glyph">&#9678;</div>' +
+        '<div class="home-choice-body">' +
+          '<div class="home-choice-title">Fiches terrain</div>' +
+          '<div class="home-choice-desc">Fiches signaletiques par point GPS : photos, mesures, carte satellite.</div>' +
+          '<div class="home-choice-count">' + n + ' fiche' + (n === 1 ? '' : 's') + '</div>' +
+        '</div>' +
+        '<div class="chevron">&rsaquo;</div>' +
+      '</div>' +
+      '<div class="home-choice" data-action="go-carnets">' +
+        '<div class="glyph">&#128221;</div>' +
+        '<div class="home-choice-body">' +
+          '<div class="home-choice-title">Carnets de terrain</div>' +
+          '<div class="home-choice-desc">Journal des sessions GPS statiques d\'un chantier (dates, heures, recepteurs).</div>' +
+          '<div class="home-choice-count">' + nc + ' carnet' + (nc === 1 ? '' : 's') + '</div>' +
+        '</div>' +
+        '<div class="chevron">&rsaquo;</div>' +
+      '</div>' +
+    '</div>';
+  }
   function renderList(){
     if(!state.entries.length){
       return '<div class="empty-state">' +
@@ -1346,6 +1401,14 @@
       '<span class="select-count">' + n + ' fiche' + (n === 1 ? '' : 's') + ' selectionnee' + (n === 1 ? '' : 's') + '</span>' +
       '<button type="button" class="btn btn-secondary btn-sm" data-action="export-selected-fiches"' + (n ? '' : ' disabled') + '>Envoyer</button>' +
       '<button type="button" class="btn btn-secondary btn-sm" data-action="extract-selected-photos"' + (n ? '' : ' disabled') + '>Extraire photos (JPG)</button>' +
+    '</div></div>';
+  }
+  function selectCarnetBarHtml(){
+    var n = Object.keys(state.selectedCarnetIds).length;
+    return '<div class="selectbar"><div class="selectbar-inner">' +
+      '<span class="select-count">' + n + ' carnet' + (n === 1 ? '' : 's') + ' selectionne' + (n === 1 ? '' : 's') + '</span>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-action="export-selected-carnets"' + (n ? '' : ' disabled') + '>Envoyer</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-action="extract-selected-carnets-xlsx"' + (n ? '' : ' disabled') + '>Exporter en .xlsx</button>' +
     '</div></div>';
   }
 
@@ -2131,7 +2194,24 @@
       try{ payload = JSON.parse(reader.result); }catch(err){ toast('Fichier illisible : ce n\'est pas un fichier de fiche ou de carnet valide.'); return; }
       // Depuis v26, le meme bouton "Importer" accepte aussi un fichier de
       // carnet de terrain (payload.carnet), reconnu avant les fiches pour
-      // eviter toute ambiguite avec les formats existants.
+      // eviter toute ambiguite avec les formats existants. Depuis v27,
+      // plusieurs carnets a la fois (payload.carnets, tableau) sont lus de
+      // la meme maniere que plusieurs fiches a la fois (payload.entries).
+      if(payload && payload.app === 'carnet-gps-terrain' && Array.isArray(payload.carnets)){
+        var carnetSources = payload.carnets.filter(function(x){ return x && typeof x === 'object'; });
+        var carnetNames = [];
+        carnetSources.forEach(function(source){
+          var name = addImportedCarnet(source);
+          if(name !== null) carnetNames.push(name);
+        });
+        if(!carnetNames.length){ toast('Fichier illisible : ce n\'est pas un fichier de fiche ou de carnet valide.'); return; }
+        sortCarnets();
+        render();
+        toast(carnetNames.length === 1
+          ? 'Carnet "' + carnetNames[0] + '" importe sur cet appareil.'
+          : carnetNames.length + ' carnets importes sur cet appareil.');
+        return;
+      }
       if(payload && payload.app === 'carnet-gps-terrain' && payload.carnet && typeof payload.carnet === 'object'){
         importCarnetFromPayload(payload.carnet);
         return;
@@ -2255,14 +2335,19 @@
     }
     var cards = state.carnets.map(function(c){
       var n = (c.rows || []).length;
-      return '<div class="card" data-action="open-carnet" data-id="' + c.id + '">' +
+      var selected = !!state.selectedCarnetIds[c.id];
+      var trailing = state.carnetSelectMode
+        ? '<div class="select-check">' + (selected ? '&#10003;' : '') + '</div>'
+        : '<div class="chevron">&rsaquo;</div>';
+      return '<div class="card' + (state.carnetSelectMode ? ' card-select' : '') + (selected ? ' card-selected' : '') +
+          '" data-action="open-carnet" data-id="' + c.id + '">' +
         '<div class="thumb">&#128221;</div>' +
         '<div class="card-body">' +
           '<div class="card-title">' + escapeHtml(c.chantier || 'Sans chantier') + '</div>' +
           '<div class="card-meta">' + fmtDateTime(c.createdAt) + (c.dossier ? ' &middot; Dossier ' + escapeHtml(c.dossier) : '') + '</div>' +
           '<div class="card-chips"><span class="chip chip-teal">' + n + ' session' + (n === 1 ? '' : 's') + '</span></div>' +
         '</div>' +
-        '<div class="chevron">&rsaquo;</div>' +
+        trailing +
       '</div>';
     }).join('');
     return '<div class="list">' + cards + '</div>';
@@ -2427,10 +2512,16 @@
     var base = sanitizeFilenamePart(c.dossier || c.chantier || 'carnet');
     shareOrSaveFiche('carnet_' + base + '.json', json);
   }
-  function importCarnetFromPayload(source){
+  // Coeur de l'import d'un carnet, partage entre l'import d'un seul carnet
+  // (payload.carnet) et l'import groupe de plusieurs carnets a la fois
+  // (payload.carnets, v27) : insere le carnet avec un nouvel id, sans
+  // afficher de toast (laisse a l'appelant le choix du message, unique ou
+  // recapitulatif). Retourne le nom affichable du carnet importe, ou null
+  // si la source est illisible.
+  function addImportedCarnet(source){
     var imported;
     try{ imported = JSON.parse(JSON.stringify(source)); }
-    catch(err){ toast('Fichier illisible : ce n\'est pas un fichier de carnet valide.'); return; }
+    catch(err){ return null; }
     imported.id = uid();
     imported.importedAt = new Date().toISOString();
     if(!Array.isArray(imported.rows)) imported.rows = [];
@@ -2438,10 +2529,70 @@
     // formulaire (certains anciens exports pourraient ne pas en avoir).
     imported.rows.forEach(function(row){ if(!row.id) row.id = uid(); });
     state.carnets.unshift(imported);
+    dbPut(CARNET_STORE, imported).catch(function(){});
+    return imported.chantier || imported.dossier || 'sans nom';
+  }
+  function importCarnetFromPayload(source){
+    var name = addImportedCarnet(source);
+    if(name === null){ toast('Fichier illisible : ce n\'est pas un fichier de carnet valide.'); return; }
     sortCarnets();
     render();
-    toast('Carnet "' + (imported.chantier || imported.dossier || 'sans nom') + '" importe sur cet appareil.');
-    dbPut(CARNET_STORE, imported).catch(function(){});
+    toast('Carnet "' + name + '" importe sur cet appareil.');
+  }
+
+  /* ---------- selection multiple de carnets (envoi groupe + export .xlsx groupe, v27) ---------- */
+  function toggleSelectCarnet(id){
+    if(state.selectedCarnetIds[id]) delete state.selectedCarnetIds[id];
+    else state.selectedCarnetIds[id] = true;
+    render();
+  }
+  function selectedCarnets(){
+    return state.carnets.filter(function(c){ return state.selectedCarnetIds[c.id]; });
+  }
+  function exportSelectedCarnets(){
+    var carnets = selectedCarnets();
+    if(!carnets.length){ toast('Aucun carnet selectionne.'); return; }
+    var payload = {app: 'carnet-gps-terrain', version: 1, exportedAt: new Date().toISOString(), carnets: carnets};
+    var json = JSON.stringify(payload);
+    var stamp = new Date().toISOString().slice(0, 10);
+    var filename = carnets.length === 1
+      ? 'carnet_' + sanitizeFilenamePart(carnets[0].dossier || carnets[0].chantier || 'carnet') + '.json'
+      : 'carnets_' + carnets.length + '_' + stamp + '.json';
+    shareOrSaveFiche(filename, json);
+  }
+  function extractSelectedCarnetsXlsx(){
+    var carnets = selectedCarnets();
+    if(!carnets.length){ toast('Aucun carnet selectionne.'); return; }
+    var files = [];
+    var usedNames = {};
+    function uniqueName(base){
+      var name = base + '.xlsx', n = 2;
+      while(usedNames[name]){ name = base + '_' + n + '.xlsx'; n++; }
+      usedNames[name] = true;
+      return name;
+    }
+    try{
+      carnets.forEach(function(c){
+        var base = sanitizeFilenamePart(c.dossier || c.chantier || 'carnet');
+        files.push({name: uniqueName(base), bytes: buildXlsxBytes('Carnet', buildCarnetMatrix(c))});
+      });
+    }catch(err){ toast('Erreur lors de la creation des fichiers .xlsx.'); return; }
+    var stamp = new Date().toISOString().slice(0, 10);
+    // Un seul carnet selectionne : fichier .xlsx direct, pas la peine de le
+    // zipper pour un seul fichier.
+    if(files.length === 1){
+      var blob1 = new Blob([files[0].bytes], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      saveFile(files[0].name, blob1).then(function(ok){
+        if(ok) toast('Carnet exporte en .xlsx.');
+      }).catch(function(){ toast('Erreur lors de l\'export du carnet.'); });
+      return;
+    }
+    var zipBytes;
+    try{ zipBytes = buildZip(files); }catch(err){ toast('Erreur lors de la creation du fichier .zip.'); return; }
+    var blob = new Blob([zipBytes], {type: 'application/zip'});
+    saveFile('carnets_xlsx_' + stamp + '.zip', blob).then(function(ok){
+      if(ok) toast(files.length + ' carnets exportes en .xlsx dans un .zip.');
+    }).catch(function(){ toast('Erreur lors de l\'export des carnets.'); });
   }
 
   /* ---------- event delegation ---------- */
@@ -2449,7 +2600,10 @@
     var el = e.target.closest('[data-action]');
     if(!el) return;
     var action = el.dataset.action;
-    if(action === 'new-entry') startNewEntry();
+    if(action === 'go-fiches') showView('list');
+    else if(action === 'go-carnets') showView('carnet-list');
+    else if(action === 'back-to-home') showView('home');
+    else if(action === 'new-entry') startNewEntry();
     else if(action === 'open-entry'){
       if(state.selectMode){ toggleSelectEntry(el.dataset.id); }
       else { state.editingId = el.dataset.id; showView('detail'); }
@@ -2461,9 +2615,16 @@
     }
     else if(action === 'export-selected-fiches') exportSelectedFiches();
     else if(action === 'extract-selected-photos') extractSelectedPhotosZip();
-    else if(action === 'open-carnets') showView('carnet-list');
+    else if(action === 'toggle-select-mode-carnet'){
+      state.carnetSelectMode = !state.carnetSelectMode;
+      state.selectedCarnetIds = {};
+      render();
+    }
+    else if(action === 'export-selected-carnets') exportSelectedCarnets();
+    else if(action === 'extract-selected-carnets-xlsx') extractSelectedCarnetsXlsx();
     else if(action === 'new-carnet'){ resetCarnetFormState(); showView('carnet-form'); }
     else if(action === 'open-carnet'){
+      if(state.carnetSelectMode){ toggleSelectCarnet(el.dataset.id); return; }
       var openedCarnet = state.carnets.find(function(x){ return x.id === el.dataset.id; });
       if(!openedCarnet) return;
       carnetDraft = {
