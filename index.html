@@ -8,8 +8,8 @@
      zoom involontaire iOS au focus d'un champ de saisie (en plus du passage
      des champs a 16px de police, meme raison). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#EEEADC" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#171B15" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#060500" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,24 +18,36 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style id="app-style">
   :root{
-    --bg:#EEEADC; --surface:#FBF9F2; --surface-2:#F2EEDE; --ink:#232B23; --ink-dim:#5B6357;
-    --line:#D8D2BE; --accent:#D9600B; --accent-ink:#FFFFFF; --teal:#1B6E7C; --teal-ink:#FFFFFF;
+    /* Charte graphique fournie par l'utilisatrice : Charbon #313C4E, Turquoise
+       #2AB5B4, Bleuet #6D8CF2, Noir #060500, Blanc #FFFFFF. Les teintes
+       intermediaires (surfaces, lignes, texte attenue) sont derivees de ces
+       5 couleurs via color-mix() plutot qu'inventees, pour rester fideles a
+       la charte. Les couleurs semantiques (good/warn/danger) ne font pas
+       partie de la charte et restent inchangees (vert/ambre/rouge usuels). */
+    --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:color-mix(in srgb, #313C4E 6%, #FFFFFF);
+    --ink:#313C4E; --ink-dim:color-mix(in srgb, #313C4E 62%, #FFFFFF);
+    --line:color-mix(in srgb, #313C4E 16%, #FFFFFF);
+    --accent:#6D8CF2; --accent-ink:#060500; --teal:#2AB5B4; --teal-ink:#060500;
     --good:#3E7A3B; --warn:#A6790A; --danger:#B23A2E;
-    --shadow:0 1px 2px rgba(35,43,35,0.06), 0 4px 14px rgba(35,43,35,0.07);
+    --shadow:0 1px 2px rgba(6,5,0,0.06), 0 4px 14px rgba(6,5,0,0.07);
     --font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
     --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#171B15; --surface:#1F241C; --surface-2:#262B21; --ink:#EDE9D8; --ink-dim:#A7AD98;
-      --line:#333B2C; --accent:#F0791F; --accent-ink:#1A1200; --teal:#4FB3C4; --teal-ink:#05262B;
+      --bg:#060500; --surface:#313C4E; --surface-2:color-mix(in srgb, #313C4E 85%, #FFFFFF 15%);
+      --ink:#FFFFFF; --ink-dim:color-mix(in srgb, #313C4E 38%, #FFFFFF 62%);
+      --line:color-mix(in srgb, #313C4E 70%, #FFFFFF 30%);
+      --accent:#6D8CF2; --accent-ink:#060500; --teal:#2AB5B4; --teal-ink:#060500;
       --good:#6FBE6A; --warn:#E0A542; --danger:#E2685A;
       --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#171B15; --surface:#1F241C; --surface-2:#262B21; --ink:#EDE9D8; --ink-dim:#A7AD98;
-    --line:#333B2C; --accent:#F0791F; --accent-ink:#1A1200; --teal:#4FB3C4; --teal-ink:#05262B;
+    --bg:#060500; --surface:#313C4E; --surface-2:color-mix(in srgb, #313C4E 85%, #FFFFFF 15%);
+    --ink:#FFFFFF; --ink-dim:color-mix(in srgb, #313C4E 38%, #FFFFFF 62%);
+    --line:color-mix(in srgb, #313C4E 70%, #FFFFFF 30%);
+    --accent:#6D8CF2; --accent-ink:#060500; --teal:#2AB5B4; --teal-ink:#060500;
     --good:#6FBE6A; --warn:#E0A542; --danger:#E2685A;
     --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
   }
@@ -151,10 +163,10 @@
   .photo-drop span{font-size:13px;font-weight:600;}
   .photo-drop span.photo-hint{font-size:11.5px;font-weight:500;color:var(--ink-dim);text-align:center;}
   .photo-preview{position:relative;line-height:0;}
-  .photo-preview img,.photo-preview canvas{width:100%;display:block;touch-action:none;background:#111;}
-  .photo-retake{position:absolute;top:8px;right:8px;background:rgba(23,27,21,0.72);color:#fff;border:none;border-radius:8px;
+  .photo-preview img,.photo-preview canvas{width:100%;display:block;touch-action:none;background:#060500;}
+  .photo-retake{position:absolute;top:8px;right:8px;background:rgba(6,5,0,0.72);color:#fff;border:none;border-radius:8px;
     padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(3px);}
-  .photo-expand{position:absolute;top:8px;left:8px;background:rgba(23,27,21,0.72);color:#fff;border:none;border-radius:8px;
+  .photo-expand{position:absolute;top:8px;left:8px;background:rgba(6,5,0,0.72);color:#fff;border:none;border-radius:8px;
     padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(3px);}
   .photo-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;font-family:var(--font-mono);
     font-size:12px;color:var(--teal);background:var(--surface);}
@@ -202,7 +214,7 @@
     text-transform:uppercase;letter-spacing:.03em;}
 
   #modal-root:empty{display:none;}
-  .modal-overlay{position:fixed;inset:0;background:rgba(20,22,17,0.55);display:flex;align-items:flex-end;justify-content:center;
+  .modal-overlay{position:fixed;inset:0;background:rgba(6,5,0,0.55);display:flex;align-items:flex-end;justify-content:center;
     z-index:100;padding:0;}
   @media (min-width:600px){.modal-overlay{align-items:center;}}
   .modal{background:var(--surface);width:100%;max-width:420px;border-radius:16px 16px 0 0;padding:20px;border:1px solid var(--line);
@@ -237,15 +249,15 @@
      distance/d'un libelle d'objet reste bien visible et utilisable par-
      dessus la vue plein ecran ; au-dessus de la barre du bas du formulaire
      (formbar, 30) pour bien la masquer. */
-  .annotator-fullscreen{position:fixed;inset:0;z-index:90;background:#0B0D0A;display:flex;flex-direction:column;}
+  .annotator-fullscreen{position:fixed;inset:0;z-index:90;background:#060500;display:flex;flex-direction:column;}
   .af-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex:none;
     padding:calc(10px + env(safe-area-inset-top)) 14px 10px calc(14px + env(safe-area-inset-left));
-    background:rgba(0,0,0,0.82);color:#fff;}
+    background:rgba(6,5,0,0.82);color:#fff;}
   .af-header h3{font-size:14px;font-weight:600;color:#fff;}
   .af-close{background:rgba(255,255,255,0.14);color:#fff;border:none;border-radius:10px;padding:9px 16px;
     font-size:14px;font-weight:700;cursor:pointer;flex:none;}
   .af-canvas-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:auto;
-    background:#0B0D0A;padding:10px;}
+    background:#060500;padding:10px;}
   .af-canvas-wrap canvas{max-width:100%;max-height:100%;width:auto;height:auto;touch-action:none;display:block;
     border-radius:4px;}
   .af-footer{flex:none;background:var(--surface);border-top:1px solid var(--line);
